@@ -7,6 +7,10 @@ import datetime
 import urllib
 import urllib2
 
+@route('/')
+def root():
+    return "Heat Map!"
+
 
 @route('/districts/lat_long')
 def getDistrictsLatLong():
