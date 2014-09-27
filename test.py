@@ -6,6 +6,7 @@ import json
 import datetime
 import urllib
 import urllib2
+from os import environ
 
 @route('/')
 def root():
@@ -85,4 +86,4 @@ def getLatLong(district):
     co_ord=response["results"][0]["geometry"]["location"]
     return {"name": district, "lat": co_ord["lat"], "lng": co_ord["lng"]}
 
-run(host='localhost', port=9999, debug=True)
+run(host="0.0.0.0", port=int(environ.get('PORT', 8080)));
