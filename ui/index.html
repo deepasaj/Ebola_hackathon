@@ -114,7 +114,7 @@
 			}
 		});
 
-		var map = L.map('map').setView([8.489555, -11.768797], 7);
+		var map = L.map('map').setView([8.489555, -11.768797], 8);
 
 		L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
 			maxZoom: 18,
@@ -176,10 +176,10 @@
 			feature.properties.density = count;
 
 			return {
-				weight: 2,
+				weight: 1,
 				opacity: 1,
 				color: 'white',
-				dashArray: '3',
+				dashArray: '5',
 				fillOpacity: 0.7,
 				fillColor: getColor(count)
 			};
