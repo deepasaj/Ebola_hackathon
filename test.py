@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 from bottle import route, run, response
 import csv
 import json
@@ -7,11 +7,7 @@ import datetime
 import urllib
 import urllib2
 from os import environ
-
-@route('/')
-def root():
-    return "Heat Map!"
-
+from bottle import static_file
 
 @route('/districts/lat_long')
 def getDistrictsLatLong():
@@ -46,6 +42,9 @@ def computeDistrictDensity():
             densities.append({"district": resultDistrict, "dateRanges": dateRange})
     return {"densities": densities}
 
+@route('/ui/<filename:re:.*>')
+def root(filename):
+    return static_file(filename, root="ui")
 
 def pruneDataSet():
     result=[]
@@ -55,7 +54,7 @@ def pruneDataSet():
     csv_file_reader = csv.DictReader(ebola_source_file, field_names)
     next(csv_file_reader)
     for row in csv_file_reader:
-        if validDate(row["call_date"]):    
+        if validDate(row["call_date"]):
            result.append(row)
     return result
 

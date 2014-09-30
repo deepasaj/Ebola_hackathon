@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Ebola Hotline Heat Map</title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/3.0.1/normalize.min.css" />
+	<link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+
+	<style>
+		body {
+			font-family: "Helvetica Neue", "Roboto", "Helvetica", sans-serif;
+			font-size: 16px;
+		}
+
+		.container {
+				margin: 0 5%;
+		}
+
+		#map {
+			width: 100%;
+			height: 500px;
+		}
+
+		h1.site-header {
+				text-align: center;
+		}
+
+		.date-container {
+			margin-top: 2em;
+		}
+			.date-container #dateSlider {
+				margin-top: 3em;
+			}
+			.date-container h5 {
+				text-align: center;
+			}
+
+		.info {
+			padding: 6px 8px;
+			font: 14px/16px Arial, Helvetica, sans-serif;
+			background: white;
+			background: rgba(255,255,255,0.8);
+			box-shadow: 0 0 15px rgba(0,0,0,0.2);
+			border-radius: 5px;
+		}
+			.info h4 {
+				margin: 0 0 5px;
+				color: #777;
+			}
+
+		.legend {
+			text-align: left;
+			line-height: 18px;
+			color: #555;
+		}
+			.legend i {
+				width: 18px;
+				height: 18px;
+				float: left;
+				margin-right: 8px;
+				opacity: 0.7;
+			}
+	</style>
+	<link rel="stylesheet" id="themeCSS" href="jQRangeSlider-5.7.0/css/classic.css">
+</head>
+<body>
+
+	<div class="container">
+		<h1 class="site-header">Ebola Hotline Heat Map</h1>
+		<div class="map-container">
+			<div id="map"></div>
+		</div>
+		<div class="date-container">
+	  	<div id="dateSlider"></div>
+			<h5>TIP: Slide the date ranges above</h5>
+	  </div>
+	</div>
+
+<script type="text/javascript" src="./sierra-leone.geojson"></script>
+	<script src="//cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.7.0/underscore-min.js"></script>
+<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.min.js"></script>
+<script src="jQRangeSlider-5.7.0/jQAllRangeSliders-min.js"></script>
+<script src="jQRangeSlider-5.7.0/lib/jquery.mousewheel.min.js"></script>
+
+<script type="text/javascript">
+
+	var startDate = new Date(2014, 09, 16);
+	var endDate = new Date(2014, 09, 23);
+	var geojson, EbolaData, total;
+
+	$.ajax("/districts/density").done(function(data) {
+
+		EbolaData = data.densities;
+		_.each(EbolaData, function(data) {
+				if (data.district) data.district = data.district.toLowerCase();
+		});
+
+		$("#dateSlider").dateRangeSlider({
+			step: {
+				days: 1
+			},
+			wheelMode: "scroll",
+			wheelSpeed: 30, bounds:{
+				min: startDate,
+				max: endDate
+			},
+			defaultValues: {
+				min: startDate,
+				max: endDate
+			}
+		});
+
+		var map = L.map('map').setView([8.489555, -11.768797], 8);
+
+		L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+				'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+			id: 'examples.map-20v6611k'
+		}).addTo(map);
+
+		// control that shows state info on hover
+		var info = L.control();
+
+		info.onAdd = function (map) {
+			this._div = L.DomUtil.create('div', 'info');
+			this.update();
+			return this._div;
+		};
+
+		info.update = function (props) {
+			this._div.innerHTML = '<h4>EBOLA Task Force</h4>' +  (props ?
+				'<b>' + props.NAME + '</b><br />' + props.density + ' calls'
+				: 'Hover over a state');
+		};
+
+		info.addTo(map);
+
+		// Get filtered count for a district
+		function getDistrictCount(district) {
+      var dateValues = $("#dateSlider").dateRangeSlider("values");
+			var startDate = dateValues.min, endDate = dateValues.max, Count = 0;
+			var filteredData = _.findWhere(EbolaData, { district: district });
+			if (!filteredData) return 0;
+
+			return _.reduce(filteredData.dateRanges, function(sum, range) {
+				var fromaDateArray = range.date.split("/");
+				var tempStart = new Date(parseInt(fromaDateArray[2]),parseInt(fromaDateArray[1]),parseInt(fromaDateArray[0]));
+
+				if(tempStart >= startDate && tempStart <= endDate)
+					sum = sum + range.count;
+
+				return sum;
+			}, 0);
+		}
+
+		// get color depending on population density value
+		function getColor(d) {
+			return d > 1000 ? '#800026' :
+			       d > 500  ? '#BD0026' :
+			       d > 200  ? '#E31A1C' :
+			       d > 100  ? '#FC4E2A' :
+			       d > 50   ? '#FD8D3C' :
+			       d > 20   ? '#FEB24C' :
+			       d > 10   ? '#FED976' :
+			                  '#FFEDA0';
+		}
+
+		function style(feature) {
+			var count = getDistrictCount(feature.properties.NAME.toLowerCase());
+			feature.properties.density = count;
+
+			return {
+				weight: 1,
+				opacity: 1,
+				color: 'white',
+				dashArray: '5',
+				fillOpacity: 0.7,
+				fillColor: getColor(count)
+			};
+		}
+
+		function highlightFeature(e) {
+			var layer = e.target;
+			layer.setStyle({
+				weight: 5,
+				color: '#666',
+				dashArray: '',
+				fillOpacity: 0.7
+			});
+
+			if (!L.Browser.ie && !L.Browser.opera) {
+				layer.bringToFront();
+			}
+
+			info.update(layer.feature.properties);
+		}
+
+		function resetHighlight(e) {
+			geojson.resetStyle(e.target);
+			info.update();
+		}
+
+		function zoomToFeature(e) {
+			map.fitBounds(e.target.getBounds());
+		}
+
+		function onEachFeature(feature, layer) {
+			layer.on({
+				mouseover: highlightFeature,
+				mouseout: resetHighlight,
+				click: zoomToFeature
+			});
+		}
+
+		geojson = L.geoJson(statesData, {
+			onEachFeature: onEachFeature,
+			style: style
+		}).addTo(map);
+
+		var legend = L.control({position: 'bottomright'});
+
+		legend.onAdd = function (map) {
+
+			var div = L.DomUtil.create('div', 'info legend'),
+				grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+				labels = [],
+				from, to;
+
+			for (var i = 0; i < grades.length; i++) {
+				from = grades[i];
+				to = grades[i + 1];
+
+				labels.push(
+					'<i style="background:' + getColor(from + 1) + '"></i> ' +
+					from + (to ? '&ndash;' + to : '+'));
+			}
+
+			div.innerHTML = labels.join('<br>');
+			return div;
+		};
+
+		legend.addTo(map);
+
+	   $("#dateSlider").on("valuesChanging", _.throttle(function(e, data) {
+        console.log("from: " + data.values.min + ", to: " + data.values.max);
+			  geojson.setStyle(style);
+     }, 100));
+  });
+
+</script>
+</body>
+</html>
